@@ -1,5 +1,5 @@
 name: Build Windows Executable - PyInstaller
-# Description:
+# Description: 
 # Most of my projects come with a build.bat script that uses PyInstaller to freeze the examples
 # to an executable file. This Action will set up the envrionment and run this build.bat script,
 # then upload the resulting executables to a google cloud bucket.
