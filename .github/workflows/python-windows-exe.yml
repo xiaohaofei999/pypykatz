@@ -1,65 +1,53 @@
-name: Build Windows Executable - PyInstaller
-# Description:
-# Most of my projects come with a build.bat script that uses PyInstaller to freeze the examples
-# to an executable file. This Action will set up the envrionment and run this build.bat script,
-# then upload the resulting executables to a google cloud bucket.
-# Additionally the executables will be compressed and encrypted using 7z
+# 文件名: .github/workflows/build-executable.yml
+
+name: Build Windows Executable - PyInstaller (GitHub Artifacts)
 
 on:
   push:
     branches:
-      - main # Trigger on push to master branch
+      - main # 触发条件：当代码推送到 main 分支时
 
 jobs:
   build:
-    runs-on: windows-latest # Use a Windows runner
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-    
-    steps:        
-    - uses: 'actions/checkout@v4'
-      with:
-        fetch-depth: 0
-    - id: 'auth'
-      uses: 'google-github-actions/auth@v1'
-      with:
-        credentials_json: '${{ secrets.GCLOUD_BUCKET_SERVICE_USER_SECRET }}'
+    runs-on: windows-latest # 在 Windows 环境下运行
 
+    steps:
+    # 步骤 1: 检出（下载）你的代码
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 步骤 2: 安装 Python 3.9
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.9'
 
+    # 步骤 3: 安装项目依赖 (PyInstaller 等)
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller virtualenv
 
+    # 步骤 4: 运行批处理文件来构建 .exe
+    # 假设 build.bat 会在 'builder/pyinstaller' 目录下生成 .exe 文件
     - name: Run Batch File to Build Executable
       run: builder\pyinstaller\build.bat
 
-    - name: Compress executables
+    # 步骤 5: 压缩构建好的可执行文件
+    - name: Compress executables with 7z
       run: |
-        "C:\Program Files\7-Zip\7z.exe" a secure.7z *.exe -pprotected
-      working-directory: ${{ github.workspace }}/builder/pyinstaller
+        "C:\Program Files\7-Zip\7z.exe" a executables.7z *.exe -pprotected
+      working-directory: ${{ github.workspace }}\builder\pyinstaller
       shell: cmd
-    
-    #- name: Upload Executable
-    #  uses: actions/upload-artifact@v2
-    #  with:
-    #    name: executable
-    #    path: builder\pyinstaller\*.exe
-        
-    - name: 'Set up Cloud SDK'
-      uses: 'google-github-actions/setup-gcloud@v1'
-      with:
-        version: '>= 390.0.0'
 
-    - name: Upload Executables to GCS
-      run: |
-        $PROJVERSION = python -c "import sys; sys.path.append('${{ github.event.repository.name }}'); import _version; print(_version.__version__)"
-        Write-Host "Detected Version: $PROJVERSION"
-        gsutil cp builder\pyinstaller\*.exe gs://skelsec-github-foss/${{ github.event.repository.name }}/$PROJVERSION/
-        gsutil cp builder\pyinstaller\*.7z gs://skelsec-github-foss/${{ github.event.repository.name }}/$PROJVERSION/
-      shell: powershell
+    # 步骤 6: 上传构建产物到 GitHub
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        # 构建产物的名称，你下载时会看到这个名字
+        name: windows-executables
+        # 需要上传的文件路径
+        # 这里我们上传 'builder/pyinstaller' 目录下的所有 .exe 文件和 .7z 压缩包
+        path: |
+          builder/pyinstaller/*.exe
+          builder/pyinstaller/*.7z
